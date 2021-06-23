@@ -39,8 +39,6 @@ else
   At = A; A = At';
 end
 
-%AAT = A * At + sparse(diag(I)); inefficient!!
-
 AAT = A * At;
 
 for i=1:mleq
@@ -154,7 +152,7 @@ while done == 0 % while not done
 
     done = (max(err_0)<tol) | (iter>= max_iter) | (secs >= timelimit); %done=1 if max{rp,rD}<tol or iter>maxiter
 
-    % print something
+    % print some info
     if (mod(iter, 100)==0) %modulus after division iter/10==0 -> stampa ogni 10 iterazioni
       fprintf( '%6.0d %8.2f %13.5e %13.5e %8.3f %8.3f  %8.3f %8.3f %9.6f \n', iter, ...
        secs, dual, primal, log10(err_0(2)), log10(err_0(1)), log10(err_0(3)),...
@@ -164,10 +162,9 @@ while done == 0 % while not done
     ratio = (sqrt(norm(X(:))^2 + norm(x)^2))/(sqrt(norm(Z(:))^2 + norm(z)^2));
     % weight
     w = 2^(-(iter-1)/100);
-    %w = 1;
-    %w = 0.02;
     sigma = (1-w)*sigma + w*max(sigma_min,min(ratio,sigma_max)) ;
     
+    %Call the post-processing procedure
     if (mod(iter,200)==0) || done
         tic;
         new_lb_pp = post_processing(model,Z);
