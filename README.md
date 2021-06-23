@@ -22,6 +22,9 @@ Federico Battista, Marianna De Santis "Dealing with inequality constraints in la
 The MAIN code for the Alternating Direction Augmented Lagrangian is
   
   * ADALplus_bounds.m 
+
+N.B. in order to make the post-processing procedure work you need to have Gurobi 
+installed
    
 ---------------------------------------------------------------------------------
 INSTANCES:
