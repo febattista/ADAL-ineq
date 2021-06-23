@@ -23,8 +23,8 @@ The MAIN code for the Alternating Direction Augmented Lagrangian is
   
   * ADALplus_bounds.m 
 
-N.B. in order to make the post-processing procedure work you need to have Gurobi 
-installed
+N.B. the post-processing procedure calls the LP solver of Gurobi.
+     You need to install Gurobi in order to run it
    
 ---------------------------------------------------------------------------------
 INSTANCES:
