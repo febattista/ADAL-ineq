@@ -1,4 +1,4 @@
-function [model] = post_processing_init(A,At,b,C,L,mleq)
+function [model] = dual_bound_init(A,At,b,C,L,mleq)
 
 sense = strings(size(L));
 sense(:, :) = '>';
