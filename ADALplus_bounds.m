@@ -76,7 +76,7 @@ idx = find(~isinf(L));
 
 lb_pp = -Inf;
 secs_lb = 0;
-model = post_processing_init(A,At,b,C,L,mleq);
+model = dual_bound_init(A,At,b,C,L,mleq);
 
 done = 0;  % stopping condition not satisfied
 iter = 0;  % iteration count
@@ -167,7 +167,7 @@ while done == 0 % while not done
     %Call the post-processing procedure
     if (mod(iter,200)==0) || done
         tic;
-        new_lb_pp = post_processing(model,Z);
+        new_lb_pp = dual_bound(model,Z);
         if round(new_lb_pp,2) > round(lb_pp,2) 
             lb_pp = new_lb_pp;
             secs_lb = toc(tStart);
