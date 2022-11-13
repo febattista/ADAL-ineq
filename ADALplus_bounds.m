@@ -8,6 +8,8 @@ function [X, y, Z, S, primal, dual, iter, secs, info] = ADALplus_bounds(A, b, C,
 %
 % A, b, C: A is m by n*n, b is m-vector, C is n by n
 % mleq : number of <= constraints, we assume that they are from 1,...,mleq 
+% U : upper bound on an optimal solution of the primal X*, needed for norm safe bound
+% ub_lam : upper bound on the maximum eigenvalue of the optimal solution of the primal X*, needed for rigorous error bound
 info = struct;
 % some formal checking
 [m, n2] = size(A); n = size(C, 1);
@@ -109,7 +111,8 @@ tot_time_LB = 0;
 time_DB = 0;
 tot_time_DB = 0;
 
-model = post_processing_init(A,At,b,C,L,mleq);
+% initialize the dual bound LP with GUROBI
+model = dual_bound_init(A,At,b,C,L,mleq);
 
 % main loop
 while done == 0 % while not done
@@ -164,7 +167,7 @@ while done == 0 % while not done
     
     if (mod(iter, 200)==0)
         tic;
-        new_DB = post_processing(model,Z);
+        new_DB = dual_bound(model,Z); % compute a new dual bound
         if ceil(new_DB) > ceil(DB)
             fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
             DB = new_DB;
@@ -176,10 +179,10 @@ while done == 0 % while not done
         
         lap = tic;
         K = norm(G(:));
-        new_bound = dual - U * K;
+        new_bound = dual - U * K; % compute new Norm bound
         if new_bound > bound
             bound = new_bound;
-            U = min(U, floor(abs(bound)) + 1);
+            % U = min(U, floor(abs(bound)) + 1); update U by the new Norm bound (valid only if the primal is a maximization problem e.g. MSSP)
             time_bound = toc(tStart);
         end
         tot_time_bound = tot_time_bound + toc(lap);
@@ -187,10 +190,10 @@ while done == 0 % while not done
 
         fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
         lap = tic;
-        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
+        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam); % compute new rigorous error bound
         if new_LB > LB
             LB = new_LB;
-            ub_lam = min(ub_lam, floor(abs(LB)) + 1);
+            % ub_lam = min(ub_lam, floor(abs(LB)) + 1); update ub_lam by the new Norm bound (valid only if the primal is a maximization problem e.g. MSSP)
             time_LB = toc(tStart);
         end
         fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
@@ -205,7 +208,7 @@ while done == 0 % while not done
     
     if done
         tic;
-        new_DB = post_processing(model,Z);
+        new_DB = dual_bound(model,Z);
         if ceil(new_DB) > ceil(DB)
             fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
             DB = new_DB;
@@ -220,7 +223,7 @@ while done == 0 % while not done
         new_bound = dual - U * K;
         if new_bound > bound
             bound = new_bound;
-            U = min(U, floor(abs(bound)) + 1);
+            %U = min(U, floor(abs(bound)) + 1);
             time_bound = toc(tStart);
         end
         tot_time_bound = tot_time_bound + toc(lap);
@@ -231,7 +234,7 @@ while done == 0 % while not done
         new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
         if new_LB > LB
             LB = new_LB;
-            ub_lam = min(ub_lam, floor(abs(LB)) + 1);
+            %ub_lam = min(ub_lam, floor(abs(LB)) + 1);
             time_LB = toc(tStart);
         end
         fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
@@ -252,18 +255,6 @@ while done == 0 % while not done
     %w = 1;
     %w = 0.02;
     sigma = (1-w)*sigma + w*max(sigma_min,min(ratio,sigma_max)) ;
-    
-%     if (mod(iter,200)==0) || done
-%         tic;
-%         new_lb_pp = post_processing(model,Z);
-%         if round(new_lb_pp,2) > round(lb_pp,2) 
-%             lb_pp = new_lb_pp;
-%             secs_lb = toc(tStart);
-%         end
-%         secs_pp = secs_pp + toc;
-%         
-%         fprintf('------------------------ Valid bound: %13.5e @ %8.2f secs ------------------------------\n', lb_pp, secs_lb);
-%     end    
     
 end
 
