@@ -1,4 +1,4 @@
-function [lb] = post_processing(model, Z)
+function [lb] = dual_bound(model, Z)
 n = size(model.C,1);
 % % compute eigenvalue decomposition of Z
 Z = 1/2*(Z + Z');
