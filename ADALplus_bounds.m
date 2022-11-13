@@ -1,4 +1,4 @@
-function [X, y, Z, S, primal, dual, lb_pp, iter, secs, secs_pp, secs_lb] = ADALplus_bounds(A, b, C, mleq, L, max_iter, tol, timelimit, sigma)
+function [X, y, Z, S, primal, dual, iter, secs, info] = ADALplus_bounds(A, b, C, mleq, L, max_iter, tol, timelimit, U, ub_lam)
 % ADAL: Alternating Direction Augmented Lagrangian method for SDP
 %   
 %       min <C, X> 
@@ -8,7 +8,7 @@ function [X, y, Z, S, primal, dual, lb_pp, iter, secs, secs_pp, secs_lb] = ADALp
 %
 % A, b, C: A is m by n*n, b is m-vector, C is n by n
 % mleq : number of <= constraints, we assume that they are from 1,...,mleq 
-
+info = struct;
 % some formal checking
 [m, n2] = size(A); n = size(C, 1);
 assert(length(b)==m, 'mismatch rows of A and length of b');
@@ -38,6 +38,8 @@ if size(A,1) == m
 else
   At = A; A = At';
 end
+
+%AAT = A * At + sparse(diag(I)); inefficient!!
 
 AAT = A * At;
 
@@ -76,20 +78,20 @@ idx = find(~isinf(L));
 
 lb_pp = -Inf;
 secs_lb = 0;
-model = dual_bound_init(A,At,b,C,L,mleq);
+model = post_processing_init(A,At,b,C,L,mleq);
 
 done = 0;  % stopping condition not satisfied
 iter = 0;  % iteration count
 g = b - A*X(:) - x; % primal residue
 
-if(nargin <= 8)
-    G1 = Z - C;
-    g1 = z;
-    normG1 = norm( G1,'fro') + norm(g1);
-    relp = norm(g)^2/(1+normb); 
-    sigma = relp*(1+normC)/(normG1^2);
-    fprintf('starting sigma: %10.7f \n', sigma);
-end
+
+G1 = Z - C;
+g1 = z;
+normG1 = norm( G1,'fro') + norm(g1);
+relp = norm(g)^2/(1+normb); 
+sigma = relp*(1+normC)/(normG1^2);
+fprintf('starting sigma: %10.7f \n', sigma);
+
 
 %SIGMA BOX
 sigma_min = 1e-4;
@@ -97,6 +99,17 @@ sigma_max = 1e+5;
 
 fprintf('    it     time     dObj          pObj         dFeas    pFeas     X>=L     compXS    sigma\n');
 
+bound= -inf;
+LB = -inf;
+DB = -inf;
+time_bound = 0;
+tot_time_bound = 0;
+time_LB = 0;
+tot_time_LB = 0;
+time_DB = 0;
+tot_time_DB = 0;
+
+model = post_processing_init(A,At,b,C,L,mleq);
 
 % main loop
 while done == 0 % while not done
@@ -148,12 +161,86 @@ while done == 0 % while not done
     primal = C(:)'*X(:); dual = b'*y + L(idx)'*S(idx);
     
     iter = iter + 1;
+    
+    if (mod(iter, 200)==0)
+        tic;
+        new_DB = post_processing(model,Z);
+        if ceil(new_DB) > ceil(DB)
+            fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
+            DB = new_DB;
+            time_DB = toc(tStart);
+        end
+        tot_time_DB = tot_time_DB + toc;
+        
+        %fprintf('------------------------ Valid bound: %13.5e @ %8.2f secs ------------------------------\n', DB, time_DB);
+        
+        lap = tic;
+        K = norm(G(:));
+        new_bound = dual - U * K;
+        if new_bound > bound
+            bound = new_bound;
+            U = min(U, floor(abs(bound)) + 1);
+            time_bound = toc(tStart);
+        end
+        tot_time_bound = tot_time_bound + toc(lap);
+        
+
+        fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
+        lap = tic;
+        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
+        if new_LB > LB
+            LB = new_LB;
+            ub_lam = min(ub_lam, floor(abs(LB)) + 1);
+            time_LB = toc(tStart);
+        end
+        fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
+        tot_time_LB = tot_time_LB + toc(lap);
+        %fprintf('Rigorous BOUND: %10.7f \n', LB);
+    end
+    
     secs = toc(tStart);
-
+    
+    
     done = (max(err_0)<tol) | (iter>= max_iter) | (secs >= timelimit); %done=1 if max{rp,rD}<tol or iter>maxiter
+    
+    if done
+        tic;
+        new_DB = post_processing(model,Z);
+        if ceil(new_DB) > ceil(DB)
+            fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
+            DB = new_DB;
+            time_DB = toc(tStart);
+        end
+        tot_time_DB = tot_time_DB + toc;
+        
+        %fprintf('------------------------ Valid bound: %13.5e @ %8.2f secs ------------------------------\n', DB, time_DB);
+        
+        lap = tic;
+        K = norm(G(:));
+        new_bound = dual - U * K;
+        if new_bound > bound
+            bound = new_bound;
+            U = min(U, floor(abs(bound)) + 1);
+            time_bound = toc(tStart);
+        end
+        tot_time_bound = tot_time_bound + toc(lap);
+        
 
-    % print some info
-    if (mod(iter, 100)==0) %modulus after division iter/10==0 -> stampa ogni 10 iterazioni
+        fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
+        lap = tic;
+        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
+        if new_LB > LB
+            LB = new_LB;
+            ub_lam = min(ub_lam, floor(abs(LB)) + 1);
+            time_LB = toc(tStart);
+        end
+        fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
+        tot_time_LB = tot_time_LB + toc(lap);
+        %fprintf('Rigorous BOUND: %10.7f \n', LB);
+    end
+
+    % print something
+    if (mod(iter, 200)==0) || done %modulus after division iter/10==0 -> stampa ogni 10 iterazioni
       fprintf( '%6.0d %8.2f %13.5e %13.5e %8.3f %8.3f  %8.3f %8.3f %9.6f \n', iter, ...
        secs, dual, primal, log10(err_0(2)), log10(err_0(1)), log10(err_0(3)),...
        log10(err_4), sigma);
@@ -162,20 +249,21 @@ while done == 0 % while not done
     ratio = (sqrt(norm(X(:))^2 + norm(x)^2))/(sqrt(norm(Z(:))^2 + norm(z)^2));
     % weight
     w = 2^(-(iter-1)/100);
+    %w = 1;
+    %w = 0.02;
     sigma = (1-w)*sigma + w*max(sigma_min,min(ratio,sigma_max)) ;
     
-    %Call the post-processing procedure
-    if (mod(iter,200)==0) || done
-        tic;
-        new_lb_pp = dual_bound(model,Z);
-        if round(new_lb_pp,2) > round(lb_pp,2) 
-            lb_pp = new_lb_pp;
-            secs_lb = toc(tStart);
-        end
-        secs_pp = secs_pp + toc;
-        
-        fprintf('------------------------ Valid bound: %13.5e @ %8.2f secs ------------------------------\n', lb_pp, secs_lb);
-    end    
+%     if (mod(iter,200)==0) || done
+%         tic;
+%         new_lb_pp = post_processing(model,Z);
+%         if round(new_lb_pp,2) > round(lb_pp,2) 
+%             lb_pp = new_lb_pp;
+%             secs_lb = toc(tStart);
+%         end
+%         secs_pp = secs_pp + toc;
+%         
+%         fprintf('------------------------ Valid bound: %13.5e @ %8.2f secs ------------------------------\n', lb_pp, secs_lb);
+%     end    
     
 end
 
@@ -187,4 +275,17 @@ end
 
 fprintf('    total time: %8.2f \n', secs);
 
+info.norm_bound = bound;
+info.error_bound = LB;
+info.time_bound = time_bound;
+info.time_error_bound = time_LB;
+info.tot_time_bound = tot_time_bound;
+info.tot_time_error_bound = tot_time_LB;
+info.dual_bound = DB;
+info.time_DB = time_DB;
+info.tot_time_DB = tot_time_DB;
+
+fprintf('best Norm bound: %10.5e found at %8.2f\n', bound, time_bound);
+fprintf('best Error bound: %10.5e found at %8.2f\n', LB, time_LB);
+fprintf('best Dual bound: %10.5e found at %8.2f\n', DB, time_DB);
 end
