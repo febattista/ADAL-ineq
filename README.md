@@ -29,6 +29,6 @@ N.B. the dual bound procedure calls the LP solver of Gurobi.
 ---------------------------------------------------------------------------------
 INSTANCES:
 ---------------------------------------------------------------------------------
-  The instances used in the numerical experience are available in three different 
-  folders
+ Instances can be formulated by the python code at:
+ https://github.com/batt95/SDP_MSSP_GCP
 
