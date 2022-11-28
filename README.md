@@ -19,9 +19,9 @@ Federico Battista, Marianna De Santis "Dealing with inequality constraints in la
                                        clique problems"
 
 ---------------------------------------------------------------------------------
-The MAIN code for the Alternating Direction Augmented Lagrangian is
+The MAIN code for the Alternating Direction Augmented Lagrangian along with safe bounding procedures is
   
-  * ADALplus_bounds.m 
+  * ADALplus_bounds.py 
 
 N.B. the dual bound procedure calls the LP solver of Gurobi.
      You need to install Gurobi in order to run it

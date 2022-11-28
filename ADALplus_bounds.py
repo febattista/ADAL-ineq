@@ -267,6 +267,7 @@ def ADMM_bounds(A, b, C, mleq, L, sigma=1., options={}):
     # nb = norm_bound(dual, (la.norm(G) + la.norm(gg)), U)
     return result
 
-h = loadmat('test_adal.mat')
+# Example usage
+h = loadmat(os.path.join('instances', 'test_adal.mat'))
 A, b, C, mleq, L = h['A'], h['b'], h['C'], h['mleq'].sum(), h['L']
 ADMM_bounds(A, b, C, mleq, L, sigma=50., options={'tolerance' : 1e-6})
