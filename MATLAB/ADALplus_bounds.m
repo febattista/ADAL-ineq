@@ -80,7 +80,7 @@ idx = find(~isinf(L));
 
 lb_pp = -Inf;
 secs_lb = 0;
-model = post_processing_init(A,At,b,C,L,mleq);
+model = dual_bound_init(A,At,b,C,L,mleq);
 
 done = 0;  % stopping condition not satisfied
 iter = 0;  % iteration count
@@ -165,11 +165,11 @@ while done == 0 % while not done
     
     iter = iter + 1;
     
-    if (mod(iter, 200)==0)
+    if (mod(iter, 10)==0)
         tic;
         new_DB = dual_bound(model,Z); % compute a new dual bound
         if ceil(new_DB) > ceil(DB)
-            fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
+            %fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
             DB = new_DB;
             time_DB = toc(tStart);
         end
@@ -188,15 +188,15 @@ while done == 0 % while not done
         tot_time_bound = tot_time_bound + toc(lap);
         
 
-        fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
+        %fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
         lap = tic;
-        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam); % compute new rigorous error bound
+        new_LB = rigorous_error_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam); % compute new rigorous error bound
         if new_LB > LB
             LB = new_LB;
             % ub_lam = min(ub_lam, floor(abs(LB)) + 1); update ub_lam by the new Norm bound (valid only if the primal is a maximization problem e.g. MSSP)
             time_LB = toc(tStart);
         end
-        fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
+        %fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
         tot_time_LB = tot_time_LB + toc(lap);
         %fprintf('Rigorous BOUND: %10.7f \n', LB);
     end
@@ -210,7 +210,7 @@ while done == 0 % while not done
         tic;
         new_DB = dual_bound(model,Z);
         if ceil(new_DB) > ceil(DB)
-            fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
+            %fprintf('OLD BOUND: %13.5f, NEW BOUND %13.5f\n', ceil(DB), ceil(new_DB));
             DB = new_DB;
             time_DB = toc(tStart);
         end
@@ -229,15 +229,15 @@ while done == 0 % while not done
         tot_time_bound = tot_time_bound + toc(lap);
         
 
-        fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
+        %fprintf('BOUND: %10.7f, U: %10.7f \n', bound, U);
         lap = tic;
-        new_LB = rigorous_erro_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
+        new_LB = rigorous_error_bound(dual, At,C,b,X,y,Z,S, mleq,1,ub_lam);
         if new_LB > LB
             LB = new_LB;
             %ub_lam = min(ub_lam, floor(abs(LB)) + 1);
             time_LB = toc(tStart);
         end
-        fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
+        %fprintf('Error BOUND: %10.7f, ub_lam: %10.7f \n', LB, ub_lam);
         tot_time_LB = tot_time_LB + toc(lap);
         %fprintf('Rigorous BOUND: %10.7f \n', LB);
     end
